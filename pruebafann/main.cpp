@@ -53,22 +53,12 @@ vector<string> generarParticiones(string nomArchivo,int cantidadParticiones,doub
 		//generamos los indices aleatorios
 		random_shuffle(indicesAleatorios.begin(),indicesAleatorios.end());
 		
-//		//Primera linea del archivo de entrenamiento
-//		vector<double> linea1(3,1);
-//		linea1[0]=cantEntrenamiento; // cantidad de patrones de entrenamiento
-//		linea1[1]=127; // cantidad de entradas
-//		linea1[2]=7; // cantidad de salidas
-//		patronesEntrenamiento.push_back(linea1);
+
 		for (int j=0;j<cantEntrenamiento;j++){
 			patronesEntrenamiento.push_back(patrones[indicesAleatorios[j]*2]);
 			patronesEntrenamiento.push_back(patrones[indicesAleatorios[j]*2+1]);
 		}
 		
-//		//Primera linea del archivo de prueba
-//		linea1[0]=cantPatrones-cantEntrenamiento; // cantidad de patrones de prueba
-//		linea1[1]=127; // cantidad de entradas
-//		linea1[2]=7; // cantidad de salidas
-//		patronesPrueba.push_back(linea1);
 		for (int j=cantEntrenamiento;j<cantPatrones;j++){
 			patronesPrueba.push_back(patrones[indicesAleatorios[j]*2]);
 			patronesPrueba.push_back(patrones[indicesAleatorios[j]*2+1]);
@@ -103,7 +93,7 @@ vector<string> generarParticiones(string nomArchivo,int cantidadParticiones,doub
 		
 		// patrones de prueba
 		FILE *salidaP = fopen(nomPrueba.c_str(),"w");
-		//Primera linea del archivo de entrenamiento
+		//Primera linea del archivo de prueba
 		linea1[0]=cantPatrones-cantEntrenamiento; // cantidad de patrones de prueba
 		linea1[1]=127; // cantidad de entradas
 		linea1[2]=7; // cantidad de salidas
@@ -125,49 +115,105 @@ vector<string> generarParticiones(string nomArchivo,int cantidadParticiones,doub
 
 int main (int argc, char *argv[]) {
 	
-	vector<string> rutas= generarParticiones("datosMerged.dat",1,0.8);
+	
 	
 	const unsigned int num_input = 127; // entradas
 	const unsigned int num_output = 7; // salidas
 	const unsigned int num_layers = 3; // cantidad de capas
 	const unsigned int num_neurons_hidden = 10; // neuronas capa oculta
-	const float desired_error = (const float) 0.00001; 
-	const unsigned int max_epochs = 500000;
+	const float desired_error = (const float) 0.001; 
+	const unsigned int max_epochs = 100000; // cien mil epocas maximo
 	const unsigned int epochs_between_reports = 1000;
-	fann_type bit_fail_limit = 0.05;
+	fann_type bit_fail_limit = 0.05; // si da 0.9 y tiene que dar 1 no da error
+	unsigned int bit_fail; // neuronas con error en cada particion de prueba
+	unsigned int bit_fail_accum=0; // para acumular los errores en todas las particiones y promediar
+	float avg_bit_fail; // promedio de bit_fails en todas las particiones
+	float MSE; // MSE en cara particion de prueba
+	float avg_MSE; // promedio de MSE en todas las particiones
+	float MSE_accum = 0.0; // para acumular los errores en todas las particiones y promediar
+	
+	const unsigned int num_part = 4; // numero de particiones
+	
+	bool stop_bit_fail = true; // detener o no el entrenamiento por numero de bits de error
+	
+	vector<string> rutas= generarParticiones("datos.dat",num_part,0.8);
 	
 	struct fann *ann = fann_create_standard(num_layers, num_input, num_neurons_hidden, num_output);
-		
-	fann_set_activation_function_hidden(ann, FANN_SIGMOID_SYMMETRIC);
-	fann_set_activation_function_output(ann, FANN_SIGMOID_SYMMETRIC);
-	fann_set_bit_fail_limit(ann, bit_fail_limit);
-	fann_train_on_file(ann, rutas[0].c_str(), max_epochs, epochs_between_reports, desired_error);
 	
-	fann_save(ann, "datosMerged_float.net");
+	// funciones de activacion sigmoideas simetricas (-1, 1)
+	fann_set_activation_function_hidden(ann, FANN_SIGMOID_SYMMETRIC); 
+	fann_set_activation_function_output(ann, FANN_SIGMOID_SYMMETRIC);
+	
+	// seteamos el bit fail limit = limite de error por neurona
+	fann_set_bit_fail_limit(ann, bit_fail_limit);
+	
+	if(stop_bit_fail){
+		fann_set_train_stop_function(ann,FANN_STOPFUNC_BIT); 
+		const float desired_error = (const float) 33; // aproximadamente 1 % de error
+		// lo anterior esta hardcodeado, viene de (cantPatrones de datoMerged)x(80% entrenamiento)x(>5% error permitido) 
+	}
+	else{
+		fann_set_train_stop_function(ann,FANN_STOPFUNC_MSE);
+		const float desired_error = (const float) 0.001; //error cuadratico medio deseado
+	}
+	
+	//Hacemos la validacion cruzada
+	
+	
+	int index = 0; // indice para recorrer archivos de entrenamiento y prueba
+	
+	for (int i=0;i<num_part;i++){
+		
+		// entrenamiento
+		fann_train_on_file(ann, rutas[index].c_str(), max_epochs, epochs_between_reports, desired_error);
+		
+		index+=1;
+		
+		//prueba
+		struct fann_train_data *data = fann_read_train_from_file(rutas[index].c_str());
+		
+		fann_reset_MSE(ann);
+		fann_test_data(ann, data);
+		
+		index+=1;
+		
+		MSE = fann_get_MSE(ann);
+		printf("Mean Square Error: %f\n", MSE); // error cuadratico medio en esta prueba
+		MSE_accum += MSE; // acumulamos el error cuadratico medio
+		
+		bit_fail = fann_get_bit_fail(ann); 
+		bit_fail_accum += bit_fail; // acumulamos la cant de neuronas con errores en la salida 
+		
+		fann_destroy_train(data);
+	}
+	
+	avg_MSE = MSE_accum/num_part;
+	avg_bit_fail = (float) bit_fail_accum/num_part;
+	
+	printf("AVG Mean Square Error: %f\n", avg_MSE);
+	printf("AVG Bit Fails: %f\n", avg_bit_fail);
+	//fann_save(ann, "datosMerged_float.net");
 	
 	//Test
 	
-	struct fann_train_data *data = fann_read_train_from_file(rutas[1].c_str());
-	fann_reset_MSE(ann);
-	fann_test_data(ann, data);
-	printf("Mean Square Error: %f\n", fann_get_MSE(ann));
-	fann_destroy_train(data);
 	
-	//Prueba de un patron
-	vector<vector<double> > patronesPrueba=parsearCSV("prueba0");
-	//struct fann *ann = fann_create_from_file("datos_float.net");
-
-	fann_type *calc_out;
-	fann_type input[127];
 	
-	for (int i=0;i<num_input;i++)
-			input[i]=patronesPrueba[37][i];
-			
-	calc_out = fann_run(ann, input);
 	
-	for (int i=0;i<num_output-1;i++)
-		printf("%f,",calc_out[i]);
-	printf("%f\n",calc_out[num_output-1]);
+//	//Prueba de un patron
+//	vector<vector<double> > patronesPrueba=parsearCSV("prueba0");
+//	//struct fann *ann = fann_create_from_file("datos_float.net");
+//
+//	fann_type *calc_out;
+//	fann_type input[127];
+//	
+//	for (int i=0;i<num_input;i++)
+//			input[i]=patronesPrueba[37][i];
+//			
+//	calc_out = fann_run(ann, input);
+//	
+//	for (int i=0;i<num_output-1;i++)
+//		printf("%f,",calc_out[i]);
+//	printf("%f\n",calc_out[num_output-1]);
 	
 	fann_destroy(ann);
 	
