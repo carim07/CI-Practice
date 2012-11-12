@@ -124,7 +124,7 @@ int main (int argc, char *argv[]) {
 	const float desired_error = (const float) 0.001; 
 	const unsigned int max_epochs = 100000; // cien mil epocas maximo
 	const unsigned int epochs_between_reports = 1000;
-	fann_type bit_fail_limit = 0.05; // si da 0.9 y tiene que dar 1 no da error
+	fann_type bit_fail_limit = 0.1; // si da 0.9 y tiene que dar 1 no da error
 	unsigned int bit_fail; // neuronas con error en cada particion de prueba
 	unsigned int bit_fail_accum=0; // para acumular los errores en todas las particiones y promediar
 	float avg_bit_fail; // promedio de bit_fails en todas las particiones
@@ -132,11 +132,11 @@ int main (int argc, char *argv[]) {
 	float avg_MSE; // promedio de MSE en todas las particiones
 	float MSE_accum = 0.0; // para acumular los errores en todas las particiones y promediar
 	
-	const unsigned int num_part = 4; // numero de particiones
+	const unsigned int num_part = 5; // numero de particiones
 	
-	bool stop_bit_fail = true; // detener o no el entrenamiento por numero de bits de error
+	bool stop_bit_fail = false; // detener o no el entrenamiento por numero de bits de error
 	
-	vector<string> rutas= generarParticiones("datos.dat",num_part,0.8);
+	vector<string> rutas= generarParticiones("datosAKDEF.dat",num_part,0.8);
 	
 	struct fann *ann = fann_create_standard(num_layers, num_input, num_neurons_hidden, num_output);
 	
@@ -150,7 +150,7 @@ int main (int argc, char *argv[]) {
 	if(stop_bit_fail){
 		fann_set_train_stop_function(ann,FANN_STOPFUNC_BIT); 
 		const float desired_error = (const float) 33; // aproximadamente 1 % de error
-		// lo anterior esta hardcodeado, viene de (cantPatrones de datoMerged)x(80% entrenamiento)x(>5% error permitido) 
+		// lo anterior esta hardcodeado, viene de (cantPatrones de datos*num neur salida)x(80% entrenamiento)x(>5% error permitido) 
 	}
 	else{
 		fann_set_train_stop_function(ann,FANN_STOPFUNC_MSE);
@@ -175,11 +175,12 @@ int main (int argc, char *argv[]) {
 		fann_reset_MSE(ann);
 		fann_test_data(ann, data);
 		
-		index+=1;
+		//index+=1;
 		
 		MSE = fann_get_MSE(ann);
 		printf("Mean Square Error: %f\n", MSE); // error cuadratico medio en esta prueba
 		MSE_accum += MSE; // acumulamos el error cuadratico medio
+		// ver varianza
 		
 		bit_fail = fann_get_bit_fail(ann); 
 		bit_fail_accum += bit_fail; // acumulamos la cant de neuronas con errores en la salida 
@@ -192,23 +193,27 @@ int main (int argc, char *argv[]) {
 	
 	printf("AVG Mean Square Error: %f\n", avg_MSE);
 	printf("AVG Bit Fails: %f\n", avg_bit_fail);
+
 	//fann_save(ann, "datosMerged_float.net");
 	
-	//Test
-	
-	
-	
-	
-//	//Prueba de un patron
-//	vector<vector<double> > patronesPrueba=parsearCSV("prueba0");
-//	//struct fann *ann = fann_create_from_file("datos_float.net");
-//
+//	enum expression {ANGRY, DISGUST, FEAR, HAPPY, NEUTRAL, SAD, SURPRISE};
+//	
+//	vector<vector<double> > patronesPrueba=parsearCSV("prueba0");	
+//	
 //	fann_type *calc_out;
 //	fann_type input[127];
 //	
+//	//struct fann *ann = fann_create_from_file("datos_float.net");
+//	double desired_output[7];
+//	
 //	for (int i=0;i<num_input;i++)
-//			input[i]=patronesPrueba[37][i];
-//			
+//		input[i]=patronesPrueba[37][i];
+//	
+//	for (int i=0;i<num_output;i++)
+//		desired_output[i]=patronesPrueba[37][i+num_input];
+//	
+//	
+//	
 //	calc_out = fann_run(ann, input);
 //	
 //	for (int i=0;i<num_output-1;i++)
@@ -216,20 +221,6 @@ int main (int argc, char *argv[]) {
 //	printf("%f\n",calc_out[num_output-1]);
 	
 	fann_destroy(ann);
-	
-//-----------------------PRUEBA---------------------------------------------------//	
-//	fann_type *calc_out;
-//	fann_type input[2];
-//	
-//	struct fann *ann = fann_create_from_file("xor_float.net");
-//	
-//	input[0] = -1.2000112;
-//	input[1] = -0.98876;
-//	calc_out = fann_run(ann, input);
-//	
-//	printf("xor test (%f,%f) -> %f\n", input[0], input[1], calc_out[0]);
-//	
-//	fann_destroy(ann);
 	
 	return 0;
 }
