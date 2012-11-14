@@ -162,105 +162,113 @@ int main (int argc, char *argv[]) {
 	
 	bool stop_bit_fail = false; // detener o no el entrenamiento por numero de bits de error
 	
-//	vector<string> rutas= generarParticiones("datos.dat",num_part,0.8);
-//	
-//	struct fann *ann = fann_create_standard(num_layers, num_input, num_neurons_hidden, num_output);
-//	
-//	// funciones de activacion sigmoideas simetricas (-1, 1)
-//	fann_set_activation_function_hidden(ann, FANN_SIGMOID_SYMMETRIC); 
-//	fann_set_activation_function_output(ann, FANN_SIGMOID_SYMMETRIC);
-//	
-//	// seteamos el bit fail limit = limite de error por neurona
-//	fann_set_bit_fail_limit(ann, bit_fail_limit);
-//	
-//	if(stop_bit_fail){
-//		fann_set_train_stop_function(ann,FANN_STOPFUNC_BIT); 
-//		const float desired_error = (const float) 33; // aproximadamente 1 % de error
-//		// lo anterior esta hardcodeado, viene de (cantPatrones de datos*num neur salida)x(80% entrenamiento)x(>5% error permitido) 
-//	}
-//	else{
-//		fann_set_train_stop_function(ann,FANN_STOPFUNC_MSE);
-//		const float desired_error = (const float) 0.001; //error cuadratico medio deseado
-//	}
-//	
-//	//Hacemos la validacion cruzada
-//	
-//	
-//	int index = 0; // indice para recorrer archivos de entrenamiento y prueba
-//	
-//	for (int i=0;i<num_part;i++){
-//		
-//		// entrenamiento
-//		fann_train_on_file(ann, rutas[index].c_str(), max_epochs, epochs_between_reports, desired_error);
-//		
-//		index+=1;
-//		
-//		//prueba
-//		struct fann_train_data *data = fann_read_train_from_file(rutas[index].c_str());
-//		
-//		fann_reset_MSE(ann);
-//		fann_test_data(ann, data);
-//		
-//		
-//		
-//		MSE = fann_get_MSE(ann);
-//		printf("Mean Square Error: %f\n", MSE); // error cuadratico medio en esta prueba
-//		MSE_accum += MSE; // acumulamos el error cuadratico medio
-//		// ver varianza
-//		
-//		bit_fail = fann_get_bit_fail(ann); 
-//		bit_fail_accum += bit_fail; // acumulamos la cant de neuronas con errores en la salida 
-//		
-//		fann_destroy_train(data);
-//	}
-//	
-//	avg_MSE = MSE_accum/num_part;
-//	avg_bit_fail = (float) bit_fail_accum/num_part;
-//	
-//	printf("AVG Mean Square Error: %f\n", avg_MSE);
-//	printf("AVG Bit Fails: %f\n", avg_bit_fail);
-//
-//	fann_save(ann, "Japanese_Database.net");
+	vector<string> rutas= generarParticiones("datos.dat",num_part,0.8);
+	
+	struct fann *ann = fann_create_standard(num_layers, num_input, num_neurons_hidden, num_output);
+	
+	// funciones de activacion sigmoideas simetricas (-1, 1)
+	fann_set_activation_function_hidden(ann, FANN_SIGMOID_SYMMETRIC); 
+	fann_set_activation_function_output(ann, FANN_SIGMOID_SYMMETRIC);
+	
+	// seteamos el bit fail limit = limite de error por neurona
+	fann_set_bit_fail_limit(ann, bit_fail_limit);
+	
+	if(stop_bit_fail){
+		fann_set_train_stop_function(ann,FANN_STOPFUNC_BIT); 
+		const float desired_error = (const float) 33; // aproximadamente 1 % de error
+		// lo anterior esta hardcodeado, viene de (cantPatrones de datos*num neur salida)x(80% entrenamiento)x(>5% error permitido) 
+	}
+	else{
+		fann_set_train_stop_function(ann,FANN_STOPFUNC_MSE);
+		const float desired_error = (const float) 0.001; //error cuadratico medio deseado
+	}
+	
+	//Hacemos la validacion cruzada
+	
+	
+	int index = 0; // indice para recorrer archivos de entrenamiento y prueba
+	
+	for (int i=0;i<num_part;i++){
+		
+		// entrenamiento
+		fann_train_on_file(ann, rutas[index].c_str(), max_epochs, epochs_between_reports, desired_error);
+		
+		index+=1;
+		
+		//prueba
+		struct fann_train_data *data = fann_read_train_from_file(rutas[index].c_str());
+		
+		fann_reset_MSE(ann);
+		fann_test_data(ann, data);
+		
+		
+		
+		MSE = fann_get_MSE(ann);
+		printf("Mean Square Error: %f\n", MSE); // error cuadratico medio en esta prueba
+		MSE_accum += MSE; // acumulamos el error cuadratico medio
+		// ver varianza
+		
+		bit_fail = fann_get_bit_fail(ann); 
+		bit_fail_accum += bit_fail; // acumulamos la cant de neuronas con errores en la salida 
+		
+		fann_destroy_train(data);
+	}
+	
+	avg_MSE = MSE_accum/num_part;
+	avg_bit_fail = (float) bit_fail_accum/num_part;
+	
+	printf("AVG Mean Square Error: %f\n", avg_MSE);
+	printf("AVG Bit Fails: %f\n", avg_bit_fail);
+
+	fann_save(ann, "Japanese_Database.net");
 	
 	enum expression {ANGRY, DISGUST, FEAR, HAPPY, NEUTRAL, SAD, SURPRISE};
 	
-	vector<vector<double> > test_data = parsearCSV("prueba0");	
-	const unsigned int size_test_data = test_data.size();
-	const unsigned int num_test_data = (size_test_data-1)/2;
-	cout<<size_test_data<<" "<<num_test_data<<endl;
+	//struct fann *ann = fann_create_from_file("Japanese_Database.net");
 	
-	fann_type *calc_out;
-	fann_type input[num_test_data][num_input];
-	
-	struct fann *ann = fann_create_from_file("Japanese_Database.net");
-	double desired_output[num_test_data][num_output];
-	
-	unsigned int i=0;
-	while (i<num_test_data){
-		cout<<i<<endl;
-		for (int j=0;j<num_input;j++)
-			input[i][j]=test_data[i*2+1][j];
-		for (int j=0;j<num_output;j++)
-			desired_output[i][j]=test_data[i*2+2][j];
-		i+=1;
-		}
+	// Contruccion de la matriz de confusion
 	
 	// confusion matrix => rows:desired output, columns: calculated output
 	unsigned int confusion_matrix[num_output][num_output] = {0};
 	unsigned int d_o;
 	unsigned int c_o;
 	
-	for(i=0;i<num_test_data;i++){
+	for (int k=1;k<num_part*2;k+=2){
 		
-		calc_out = fann_run(ann, input[i]);
+		vector<vector<double> > test_data = parsearCSV(rutas[k]);
+		cout<<rutas[k].c_str()<<endl;
 		
-		d_o = pos_max(desired_output[i]);
-		c_o = pos_max(calc_out);
+		const unsigned int size_test_data = test_data.size();
+		const unsigned int num_test_data = (size_test_data-1)/2;
+			
+		fann_type *calc_out;
+		fann_type input[num_test_data][num_input];
 		
-		confusion_matrix[d_o][c_o]++;
+		
+		double desired_output[num_test_data][num_output];
+		
+		
+		for (int i=0;i<num_test_data;i++){
+			for (int j=0;j<num_input;j++)
+				input[i][j]=test_data[i*2+1][j];
+			for (int j=0;j<num_output;j++)
+				desired_output[i][j]=test_data[i*2+2][j];
+		}
+		
+		for(int i=0;i<num_test_data;i++){
+			
+			calc_out = fann_run(ann, input[i]);
+			
+			d_o = pos_max(desired_output[i]);
+			c_o = pos_max(calc_out);
+			
+			confusion_matrix[d_o][c_o]++;
+		}
 	}
 	
-	for(i=0;i<num_output;i++){
+	
+	
+	for(int i=0;i<num_output;i++){
 		for(int j=0;j<num_output-1;j++)
 			printf("%i,",confusion_matrix[i][j]);
 		printf("%i\n",confusion_matrix[i][num_output-1]);
