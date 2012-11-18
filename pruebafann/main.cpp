@@ -95,7 +95,7 @@ vector<string> gen_partition(string archive,int num_partition,double train_perce
 		
 		//estimation file
 		FILE *e_file = fopen(path_estimation_subset.c_str(),"w");
-		int j;
+		unsigned int j;
 		//first line of estimation subset file
 		vector<int> line1(3,1);
 		line1[0]=num_estimation; // number of patterns
@@ -104,7 +104,7 @@ vector<string> gen_partition(string archive,int num_partition,double train_perce
 		for(j=0;j<line1.size()-1;j++)
 			fprintf(e_file,"%i ",line1[j]);
 		fprintf(e_file,"%i\n",line1[j]);
-		for(int k=0;k<estimation_subset.size();k++){
+		for(unsigned int k=0;k<estimation_subset.size();k++){
 			for(j=0;j<estimation_subset[k].size()-1;j++)
 				fprintf(e_file,"%f ",estimation_subset[k][j]);
 			fprintf(e_file,"%f\n",estimation_subset[k][j]);
@@ -120,7 +120,7 @@ vector<string> gen_partition(string archive,int num_partition,double train_perce
 		for(j=0;j<line1.size()-1;j++)
 			fprintf(v_file,"%i ",line1[j]);
 		fprintf(v_file,"%i\n",line1[j]);
-		for(int k=0;k<validation_subset.size();k++){
+		for(unsigned int k=0;k<validation_subset.size();k++){
 			for(j=0;j<validation_subset[k].size()-1;j++)
 				fprintf(v_file,"%f ",validation_subset[k][j]);
 			fprintf(v_file,"%f\n",validation_subset[k][j]);
@@ -136,7 +136,7 @@ vector<string> gen_partition(string archive,int num_partition,double train_perce
 		for(j=0;j<line1.size()-1;j++)
 			fprintf(t_file,"%i ",line1[j]);
 		fprintf(t_file,"%i\n",line1[j]);
-		for(int k=0;k<test_subset.size();k++){
+		for(unsigned int k=0;k<test_subset.size();k++){
 			for(j=0;j<test_subset[k].size()-1;j++)
 				fprintf(t_file,"%f ",test_subset[k][j]);
 			fprintf(t_file,"%f\n",test_subset[k][j]);
@@ -151,7 +151,7 @@ unsigned int pos_max(fann_type *calc_out){
 	unsigned int size_calc_out = 7;
 	double max=-2.0;
 	unsigned int pos_m;
-	for(int i=0;i<size_calc_out;i++){
+	for(unsigned int i=0;i<size_calc_out;i++){
 		if(calc_out[i]>max){
 			max = calc_out[i];
 			pos_m = i;
@@ -164,7 +164,7 @@ unsigned int pos_max(double *desired_output){
 	unsigned int size_desired_output = 7;
 	double max=-2.0;
 	unsigned int pos_m;
-	for(int i=0;i<size_desired_output;i++){
+	for(unsigned int i=0;i<size_desired_output;i++){
 		if(desired_output[i]>max){
 			max = desired_output[i];
 			pos_m = i;
@@ -182,7 +182,7 @@ int main (int argc, char *argv[]) {
 	const unsigned int num_output = 7; // salidas
 	const unsigned int num_layers = 3; // cantidad de capas
 	const unsigned int num_neurons_hidden = 10; // neuronas capa oculta
-	const float desired_error = (const float) 0.0001; 
+	float desired_error = 0.0001; 
 	const unsigned int max_epochs = 100000; // cien mil epocas maximo
 	const unsigned int epochs_between_reports = 1000;
 	fann_type bit_fail_limit = 0.1; // si da 0.9 y tiene que dar 1 no da error
@@ -210,17 +210,17 @@ int main (int argc, char *argv[]) {
 	
 	if(stop_bit_fail){
 		fann_set_train_stop_function(ann,FANN_STOPFUNC_BIT); 
-		const float desired_error = (const float) 33; // aproximadamente 1 % de error
+		desired_error = 33; // aproximadamente 1 % de error
 		// lo anterior esta hardcodeado, viene de (cantPatrones de datos*num neur salida)x(80% entrenamiento)x(>5% error permitido) 
 	}
 	else{
 		fann_set_train_stop_function(ann,FANN_STOPFUNC_MSE);
-		const float desired_error = (const float) 0.001; //error cuadratico medio deseado
+		desired_error = 0.001; //error cuadratico medio deseado
 	}
 	
 	//Hacemos la validacion cruzada
 		
-	for (int i=0;i<num_part*3;i+=3){
+	for (unsigned int i=0;i<num_part*3;i+=3){
 		
 		// entrenamiento -> estimacion
 		fann_train_on_file(ann, paths[i].c_str(), max_epochs, epochs_between_reports, desired_error);
@@ -231,7 +231,7 @@ int main (int argc, char *argv[]) {
 		vector<vector<double> > validation_subset=parseCSV(paths[i+1].c_str());
 		cout<<paths[i+1].c_str()<<endl;
 		
-	
+		
 		
 		//prueba
 		struct fann_train_data *data = fann_read_train_from_file(paths[i+2].c_str());
@@ -272,7 +272,7 @@ int main (int argc, char *argv[]) {
 	unsigned int d_o;
 	unsigned int c_o;
 	
-	for (int k=1;k<num_part*3;k+=3){
+	for (unsigned int k=1;k<num_part*3;k+=3){
 		
 		vector<vector<double> > test_data = parseCSV(paths[k]);
 		cout<<paths[k].c_str()<<endl;
@@ -287,14 +287,14 @@ int main (int argc, char *argv[]) {
 		double desired_output[num_test_data][num_output];
 		
 		
-		for (int i=0;i<num_test_data;i++){
-			for (int j=0;j<num_input;j++)
+		for (unsigned int i=0;i<num_test_data;i++){
+			for (unsigned int j=0;j<num_input;j++)
 				input[i][j]=test_data[i*2+1][j];
-			for (int j=0;j<num_output;j++)
+			for (unsigned int j=0;j<num_output;j++)
 				desired_output[i][j]=test_data[i*2+2][j];
 		}
 		
-		for(int i=0;i<num_test_data;i++){
+		for(unsigned int i=0;i<num_test_data;i++){
 			
 			calc_out = fann_run(ann, input[i]);
 			
@@ -307,8 +307,8 @@ int main (int argc, char *argv[]) {
 	
 	
 	
-	for(int i=0;i<num_output;i++){
-		for(int j=0;j<num_output-1;j++)
+	for(unsigned int i=0;i<num_output;i++){
+		for(unsigned int j=0;j<num_output-1;j++)
 			printf("%i,",confusion_matrix[i][j]);
 		printf("%i\n",confusion_matrix[i][num_output-1]);
 	}
