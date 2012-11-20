@@ -250,7 +250,9 @@ int main (int argc, char *argv[]) {
 		bit_fail = fann_get_bit_fail(ann); 
 		bit_fail_accum += bit_fail; // acumulamos la cant de neuronas con errores en la salida 
 		
+		//fann_randomize_weights(ann,-0.5,0.5); //seteamos los valores aleatorios nuevamente
 		fann_destroy_train(data);
+		
 	}
 	
 	avg_MSE = MSE_accum/num_part;
