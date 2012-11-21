@@ -15,6 +15,7 @@ struct individuo{
 	int *cromosoma;
 	float fitness;
 };
+
 bool cmp_individuos(const individuo& x,const individuo& y){
 	return x.fitness>y.fitness;
 }
@@ -46,6 +47,18 @@ float binario2real(int *b,int e){
 	r=entero+decimal/pow((float)2,d);
 	if (b[0]==1) r*=-1;
 	return r;
+}
+
+
+int guardaArchivo(string nomArchivoSalida,vector<float> v,unsigned int it)
+{	//Guardamos el vector con los patrones aleatorios en formato csv.
+	FILE *salida = fopen(nomArchivoSalida.c_str(),"w");
+	if(salida==NULL) return -1;
+	for(int i=0;i<it;i++)
+		fprintf(salida,"%f\n",v[i]);	
+	
+	fclose(salida);
+	return 1;
 }
 
 int main (int argc, char *argv[]) {
@@ -100,12 +113,14 @@ int main (int argc, char *argv[]) {
 	
 	// vectores para guardar valores de fitness y graficar
 	
-	vector<float> max_fit;
-	max_fit.reserve(maxit);
-	vector<float> min_fit;
-	min_fit.reserve(maxit);
-	vector<float> prom_fit;
-	prom_fit.reserve(maxit);
+	vector<float> max_fit(maxit,-300);
+	//max_fit.reserve(maxit);
+	vector<float> min_fit(maxit,-300);
+	//min_fit.reserve(maxit);
+	vector<float> prom_fit(maxit,-300);
+	//prom_fit.reserve(maxit);
+	
+	i=0;
 	
 	while(max_fitness<objetivo && i<maxit){
 		
@@ -120,6 +135,9 @@ int main (int argc, char *argv[]) {
 			progenitores[j]=rand()%size_ventana;
 			size_ventana *= 0.9;
 		}
+		
+		
+	
 		
 		// si hay brecha generacional, los padres viven en la nueva generacion
 		if(brecha){
@@ -242,11 +260,15 @@ int main (int argc, char *argv[]) {
 		
 		i++;
 		
+		
 		cout<<"La mejor solucion obtenida es: "<<binario2real(poblacion[0].cromosoma,e)<<" Fitness: "<<poblacion[0].fitness<<"Iteraciones: "<<i<<endl;
 		
 		
 	}
-	
+	cout<<max_fit.size()<<endl;
+	guardaArchivo("fitness_max",max_fit,i);
+	guardaArchivo("fitness_min",min_fit,i);
+	guardaArchivo("fitness_prom",prom_fit,i);
 //	
 //	
 	
