@@ -23,32 +23,61 @@ bool cmp_individuos(const individuo& x,const individuo& y){
 
 double f(int i, float x, float y=0){
 	float z;
-	if (i==1) z=-x*sin(sqrt(abs(x))); 
-	if (i==2) z=x+5*sin(3*x)+8*cos(5*x);
-	if (i==3) z=pow((x*x+y*y),0.25)*(sin(50*pow((x*x+y*y),0.1)+1)*sin(50*pow((x*x+y*y),0.1)+1));
+	if (i==0) z=-x*sin(sqrt(abs(x))); 
+	if (i==1) z=x+5*sin(3*x)+8*cos(5*x);
+	if (i==2) z=pow((x*x+y*y),0.25)*(sin(50*pow((x*x+y*y),0.1)+1)*sin(50*pow((x*x+y*y),0.1)+1));
 	
 	return z; 
 }
 
-float binario2real(int *b,int e){
-	float r=0,
-		decimal=0;
-	int entero=0,
-		b_size=sizeof(b)/sizeof(int),
-		d=b_size-e-1; //cantidad de cifras parte decimal
-	// e = cifras parte entera
-	for (int i=1;i<=e;i++){
-		entero+=b[i]*pow((float)2,(float)(i-1));
+float binario2real(int *b,int n, int e){
+	float real=0, decimal=0;
+	int	d=n-e-1; //cantidad de cifras parte decimal
+	
+	// parte entera
+	for (int i=0;i<e;i++){
+		real+=b[i+1]*pow((float)2,(float)(e-1-i));
 	}
-	decimal=0;
-	for (int i=e+1;i<b_size;i++){
-		decimal+=b[i]*pow((float)2,(float)(i-(e+1)));
+	
+	// parte decimal
+	for (int i=0;i<d;i++){
+		decimal+=b[e+1+i]*pow((float)2,(float)(d-1-i));
 	}
-	r=entero+decimal/pow((float)2,d);
-	if (b[0]==1) r*=-1;
-	return r;
+	decimal/=pow(2,d);
+	real+=(decimal);
+	
+	// signo
+	if (b[0]==1) real*=-1;
+	return real;
 }
 
+void real2binario(float f, int *b, int n, int e){
+	// signo
+	if(f<0){
+		b[0]=1;
+		//f*=-1;
+	}
+	// parte entera
+	int cociente = (int)f;
+	for (int i=0;i<e;i++){
+		//cout<<cociente%2<<endl;
+		b[e-i]=cociente%2;
+		cociente/=2;
+	}
+	// parte real
+	int	d=n-e-1;
+	float decimal = f-(int)f;
+	int resto;
+	for (int i=0;i<d;i++){
+		//cout<<decimal<<endl;
+		decimal*=2;
+		resto=(int)decimal;
+		//cout<<resto<<" "<<i<<endl;
+		b[e+1+i]=resto;
+		decimal=decimal-resto;
+		
+	}
+}
 
 int guardaArchivo(string nomArchivoSalida,vector<float> v,unsigned int it)
 {	//Guardamos el vector con los patrones aleatorios en formato csv.
@@ -64,9 +93,9 @@ int guardaArchivo(string nomArchivoSalida,vector<float> v,unsigned int it)
 int main (int argc, char *argv[]) {
 	
 	const unsigned int func = 1;
-	const float objetivo = 416;
+	const float aptitud_requerida[3] = {415,9,-0.1};
 	
-	const unsigned int num_individuos = 50; // size poblacion
+	const unsigned int num_individuos = 100; // size poblacion
 	const unsigned int num_genes = 30; // size cromosoma
 	const float porc_brecha = 0.1;
 	const unsigned int num_progenitores = num_individuos*porc_brecha; // numero de padres
@@ -75,8 +104,12 @@ int main (int argc, char *argv[]) {
 	const float prob_cruza = 0.9;
 	const float prob_muta = 0.1;
 	
+	const int rango[3][2] = {{-512,512},{0,20},{-100,100}};
+	
 	bool elitismo = true;
 	bool brecha = true;
+	
+	float fenotipo;
 	
 	individuo x;
 	vector<individuo> poblacion(num_individuos,x);
@@ -90,17 +123,31 @@ int main (int argc, char *argv[]) {
 	
 	// Inicializamos poblacion aleatoriamente
 	
-	x.cromosoma = new int[num_genes];
-	for(i=0;i<num_individuos;i++){
-		for(j=0;j<num_genes;j++)
-			x.cromosoma[j]=rand()%2; // binario aleatorio
+//	x.cromosoma = new int[num_genes];
+//	for(i=0;i<num_individuos;i++){
+//		for(j=0;j<num_genes;j++)
+//			x.cromosoma[j]=rand()%2; // binario aleatorio
+//		poblacion[i]=x;
+//	}
+	
+	// Creamos un individuo en el rango [a,b] y lo codificamos con un cromosoma en el rango [0,2^e]
+	int cromosoma[num_genes]={0};
+	for (i=0;i<num_individuos;i++){
+		fenotipo = rango[func][0] + (float)rand()/RAND_MAX*(rango[func][1]-rango[func][0]+1);
+		//cout<<fenotipo<<endl;
+		fenotipo/=rango[func][1];
+		//cout<<fenotipo<<endl;
+		fenotipo*=pow((float)2,(float)(e));
+		//cout<<fenotipo<<endl;
+		real2binario(fenotipo,cromosoma,num_genes,e);
+		x.cromosoma=cromosoma;
 		poblacion[i]=x;
 	}
 	
 	// Evaluamos el fitness de la poblacion
-
+	// previa conversion del rango [0,2^e] a [a,b]
 	for(i=0;i<num_individuos;i++)
-		poblacion[i].fitness = -f(func,binario2real(poblacion[i].cromosoma,e));
+		poblacion[i].fitness = -f(func,(binario2real(poblacion[i].cromosoma,num_genes,e)/pow((float)2,(float)(e))*rango[func][1]));
 	
 	// Ordenamos por fitness descendente
 	
@@ -109,20 +156,18 @@ int main (int argc, char *argv[]) {
 	// Loop de Evolucion
 	
 	float max_fitness = poblacion[0].fitness;
-	const unsigned int maxit = 300;
+	const unsigned int maxit = 100;
 	
 	// vectores para guardar valores de fitness y graficar
 	
 	vector<float> max_fit(maxit,-300);
 	//max_fit.reserve(maxit);
-	vector<float> min_fit(maxit,-300);
-	//min_fit.reserve(maxit);
 	vector<float> prom_fit(maxit,-300);
 	//prom_fit.reserve(maxit);
 	
 	i=0;
 	
-	while(max_fitness<objetivo && i<maxit){
+	while(max_fitness<aptitud_requerida[func] && i<maxit){
 		
 		// Elegimos los padres por metodo de ventana
 		// guardamos vector de indices de padres
@@ -131,17 +176,16 @@ int main (int argc, char *argv[]) {
 		unsigned int cont_nueva_gen = 0;
 		
 		unsigned int size_ventana = num_individuos;
+		
 		for(j=0;j<num_progenitores;j++){
 			progenitores[j]=rand()%size_ventana;
 			size_ventana *= 0.9;
 		}
 		
-		
-	
-		
+			
 		// si hay brecha generacional, los padres viven en la nueva generacion
 		if(brecha){
-			for(j=0;j<num_progenitores;j++){
+			for(j=cont_nueva_gen;j<num_progenitores;j++){
 				nueva_generacion[j]=poblacion[progenitores[j]];
 			}
 			cont_nueva_gen += num_progenitores; 
@@ -177,6 +221,7 @@ int main (int argc, char *argv[]) {
 					hijo1.cromosoma[k]=poblacion[progenitores[padre2]].cromosoma[k];
 					hijo2.cromosoma[k]=poblacion[progenitores[padre1]].cromosoma[k];
 				}
+				
 				nueva_generacion[cont_nueva_gen]=hijo1;
 				cont_nueva_gen +=1;
 				nueva_generacion[cont_nueva_gen]=hijo2;
@@ -206,6 +251,7 @@ int main (int argc, char *argv[]) {
 				for(k=punto_corte;k<num_genes;k++){
 					hijo1.cromosoma[k]=poblacion[progenitores[padre2]].cromosoma[k];
 				}
+				
 				nueva_generacion[cont_nueva_gen]=hijo1;
 				cont_nueva_gen +=1;
 			}
@@ -216,15 +262,25 @@ int main (int argc, char *argv[]) {
 		}
 		
 		// Mutacion
+		if(elitismo)
+			j=1;
+		else
+			j=0;
 		
-		for(j=0;j<num_individuos;j++){
+		
+		for(j;j<num_individuos;j++){
 			
 			float muta = (float)rand()/RAND_MAX;
-			
+			//cout<<muta<<endl;
 			if(muta<prob_muta){
+				cout<<"muto! "<<"en "<<i<<endl;
 				
-				int gen = rand()%num_genes;
+				int gen = rand()%num_genes; 
 				
+				// modificamos operador para no generar individuo invalido
+				if(func==1 && gen==0) 
+					gen = gen%(num_genes-1)+1; 
+														
 				if(nueva_generacion[j].cromosoma[gen]==0)
 					nueva_generacion[j].cromosoma[gen]=1;
 				else
@@ -235,10 +291,10 @@ int main (int argc, char *argv[]) {
 		
 		poblacion = nueva_generacion;
 		
-		// Crece la poblacion (se decodifica y evaluamos su fitness)
+		// Nace la poblacion (se decodifica y evaluamos su fitness)
 		
 		for(j=0;j<num_individuos;j++)
-			poblacion[j].fitness = -f(func,binario2real(poblacion[j].cromosoma,e));
+			poblacion[j].fitness = -f(func,binario2real(poblacion[j].cromosoma,num_genes,e)/pow((float)2,(float)(e))*rango[func][1]);
 		
 		// Ordenamos por fitness descendente
 		
@@ -248,8 +304,6 @@ int main (int argc, char *argv[]) {
 		
 		// Guardamos fitness max, min y promedio para graficar
 		max_fit[i] = max_fitness;
-		min_fit[i] = poblacion[num_individuos].fitness;
-		
 		prom_fit[i] = 0;
 		
 		for(j=0;j<num_individuos;j++){
@@ -261,16 +315,30 @@ int main (int argc, char *argv[]) {
 		i++;
 		
 		
-		cout<<"La mejor solucion obtenida es: "<<binario2real(poblacion[0].cromosoma,e)<<" Fitness: "<<poblacion[0].fitness<<"Iteraciones: "<<i<<endl;
+		//cout<<"La mejor solucion obtenida es: "<<binario2real(poblacion[0].cromosoma,e)<<" Fitness: "<<poblacion[0].fitness<<"Iteraciones: "<<i<<endl;
 		
 		
 	}
-	cout<<max_fit.size()<<endl;
+	cout<<"La mejor solucion obtenida es: "<<binario2real(poblacion[0].cromosoma,num_genes,e)/pow((float)2,(float)(e))*rango[func][1]<<" Fitness: "<<poblacion[0].fitness<<"Iteraciones: "<<i<<endl;
 	guardaArchivo("fitness_max",max_fit,i);
-	guardaArchivo("fitness_min",min_fit,i);
 	guardaArchivo("fitness_prom",prom_fit,i);
-//	
-//	
+	
+	
+	/*
+	int a[10]={0, 1, 1, 0, 0, 1, 0, 1, 0, 1};
+	int e=4;
+	float f=binario2real(a,10,e);
+	cout<<f<<endl;
+	int b[10]={0};
+	real2binario(f,b,10,e);
+	cout<<"binario"<<endl;
+	for(int i=0;i<10;i++){
+		cout<<b[i]<<" ";
+	}
+	cout<<endl;
+	
+	*/
+	
 	
 	return 0;
 }
