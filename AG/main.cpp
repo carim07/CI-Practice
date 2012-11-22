@@ -55,7 +55,7 @@ void real2binario(float f, int *b, int n, int e){
 	// signo
 	if(f<0){
 		b[0]=1;
-		//f*=-1;
+		f*=-1;
 	}
 	// parte entera
 	int cociente = (int)f;
